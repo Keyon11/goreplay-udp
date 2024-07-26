@@ -37,6 +37,10 @@ type AppSettings struct {
 	inputUDPTrackResponse bool
 	outputUDP             MultiOption
 	outputUDPConfig       output.UDPOutputConfig
+
+	inputHttp        MultiOption
+	outputHttp       MultiOption
+	outputHttpConfig output.HTTPOutputConfig
 }
 
 // Settings holds Goreplay configuration
@@ -70,4 +74,23 @@ func init() {
 	flag.BoolVar(&Settings.outputUDPConfig.Stats, "output-udp-stats", false, "Report udp output queue stats to console every 5 seconds")
 	flag.BoolVar(&Settings.outputUDPConfig.IgnoreResponse, "output-udp-ignore-response", false, "Ignore UDP Response")
 
+	flag.Var(&Settings.inputHttp, "input-http", "Capture traffic from given port (use RAW sockets and require *sudo* access):\n\t# Capture traffic from 8080 port\n\tgoreplay-udp --input-http :8080 --output-stdout")
+	flag.Var(&Settings.outputHttp, "output-http", "Forwards incoming requests to given http address.\n\t# Redirect all incoming requests to staging.com address \n\tgor --input-raw :80 --output-http http://staging.com")
+
+	/* outputHTTPConfig */
+	//flag.Var(&Settings.outputHttpConfig.BufferSize, "output-http-response-buffer", "HTTP response buffer size, all data after this size will be discarded.")
+	flag.IntVar(&Settings.outputHttpConfig.WorkersMin, "output-http-workers-min", 0, "Gor uses dynamic worker scaling. Enter a number to set a minimum number of workers. default = 1.")
+	flag.IntVar(&Settings.outputHttpConfig.WorkersMax, "output-http-workers", 0, "Gor uses dynamic worker scaling. Enter a number to set a maximum number of workers. default = 0 = unlimited.")
+	flag.IntVar(&Settings.outputHttpConfig.QueueLen, "output-http-queue-len", 1000, "Number of requests that can be queued for output, if all workers are busy. default = 1000")
+	flag.BoolVar(&Settings.outputHttpConfig.SkipVerify, "output-http-skip-verify", false, "Don't verify hostname on TLS secure connection.")
+	flag.DurationVar(&Settings.outputHttpConfig.WorkerTimeout, "output-http-worker-timeout", 2*time.Second, "Duration to rollback idle workers.")
+
+	flag.IntVar(&Settings.outputHttpConfig.RedirectLimit, "output-http-redirects", 0, "Enable how often redirects should be followed.")
+	flag.DurationVar(&Settings.outputHttpConfig.Timeout, "output-http-timeout", 5*time.Second, "Specify HTTP request/response timeout. By default 5s. Example: --output-http-timeout 30s")
+	flag.BoolVar(&Settings.outputHttpConfig.TrackResponses, "output-http-track-response", false, "If turned on, HTTP output responses will be set to all outputs like stdout, file and etc.")
+
+	flag.BoolVar(&Settings.outputHttpConfig.Stats, "output-http-stats", false, "Report http output queue stats to console every N milliseconds. See output-http-stats-ms")
+	flag.IntVar(&Settings.outputHttpConfig.StatsMs, "output-http-stats-ms", 5000, "Report http output queue stats to console every N milliseconds. default: 5000")
+	flag.BoolVar(&Settings.outputHttpConfig.OriginalHost, "http-original-host", false, "Normally gor replaces the Host http header with the host supplied with --output-http.  This option disables that behavior, preserving the original Host header.")
+	/* outputHTTPConfig */
 }

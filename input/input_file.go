@@ -157,11 +157,12 @@ func (i *FileInput) init() (err error) {
 	return nil
 }
 
-func (i *FileInput) Read(data []byte) (int, error) {
+func (i *FileInput) PluginRead() (*proto.Message, error) {
+	var msg proto.Message
 	buf := <-i.data
-	copy(data, buf)
+	msg.Meta, msg.Data = proto.PayloadMetaWithBody(buf)
 
-	return len(buf), nil
+	return &msg, nil
 }
 
 func (i *FileInput) String() string {

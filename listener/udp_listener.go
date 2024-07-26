@@ -40,7 +40,7 @@ func NewUDPListener(addr string, port string, trackResponse bool) (l *UDPListene
 
 func (l *UDPListener) parseUDPPacket(packet *ipPacket) (message *proto.UDPMessage) {
 	data := packet.payload
-	message = proto.NewUDPMessage(data, false)
+	message = proto.NewUDPMessage(data, packet.srcIP, packet.dstIP, false)
 	if message.DstPort == l.port {
 		message.IsIncoming = true
 	}

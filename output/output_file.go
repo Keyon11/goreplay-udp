@@ -181,10 +181,10 @@ func (o *FileOutput) updateName() {
 	o.currentName = filepath.Clean(o.filename())
 }
 
-func (o *FileOutput) Write(data []byte) (n int, err error) {
+func (o *FileOutput) PluginWrite(msg *proto.Message) (n int, err error) {
 
 	if o.requestPerFile {
-		meta := proto.PayloadMeta(data)
+		meta := proto.PayloadMeta(msg.Meta)
 		o.payloadType = meta[0]
 		o.currentID = meta[1]
 	}
@@ -212,12 +212,16 @@ func (o *FileOutput) Write(data []byte) (n int, err error) {
 		o.mu.Unlock()
 	}
 
-	o.writer.Write(data)
-	o.writer.Write([]byte(proto.PayloadSeparator))
+	var nn int
+	n, err = o.writer.Write(msg.Meta)
+	nn, err = o.writer.Write(msg.Data)
+	n += nn
+	nn, err = o.writer.Write([]byte(proto.PayloadSeparator))
+	n += nn
 
 	o.queueLength++
 
-	return len(data), nil
+	return n, nil
 }
 
 func (o *FileOutput) flush() {

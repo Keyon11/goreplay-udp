@@ -11,9 +11,24 @@ import (
 	"time"
 )
 
+// Message represents data across plugins
+type Message struct {
+	Meta []byte // metadata
+	Data []byte // actual data
+}
+
+type Response struct {
+	Payload       []byte
+	Uuid          []byte
+	RoundTripTime int64
+	StartedAt     int64
+}
+
 type UDPMessage struct {
 	IsIncoming bool
 	Start      time.Time
+	SrcIp      []byte
+	DstIp      []byte
 	SrcPort    uint16
 	DstPort    uint16
 	length     uint16
@@ -21,13 +36,17 @@ type UDPMessage struct {
 	data       []byte
 }
 
-func NewUDPMessage(data []byte, isIncoming bool) (m *UDPMessage) {
+func NewUDPMessage(data []byte, srcIp, dstIp []byte, isIncoming bool) (m *UDPMessage) {
 	m = &UDPMessage{}
 	udp := &layers.UDP{}
 	err := udp.DecodeFromBytes(data, gopacket.NilDecodeFeedback)
 	if err != nil {
 		log.Printf("Error decode udp message, %v\n", err)
 	}
+	m.SrcIp = make([]byte, len(srcIp))
+	copy(m.SrcIp, srcIp)
+	m.DstIp = make([]byte, len(dstIp))
+	copy(m.DstIp, dstIp)
 	m.SrcPort = uint16(udp.SrcPort)
 	m.DstPort = uint16(udp.DstPort)
 	m.length = udp.Length

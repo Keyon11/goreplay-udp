@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/myzhan/goreplay-udp/output"
 	"io"
 	"time"
 )
@@ -23,24 +24,19 @@ func Start(stop chan int) {
 }
 
 // CopyMulty copies from 1 reader to multiple writers
-func CopyMulty(src io.Reader, writers ...io.Writer) (err error) {
-	buf := make([]byte, 5*1024*1024)
+func CopyMulty(src PluginReader, writers ...PluginWriter) (err error) {
 	for {
-		nr, er := src.Read(buf)
-
-		if nr > 0 && len(buf) > nr {
-			payload := buf[:nr]
-			for _, dst := range writers {
-				dst.Write(payload)
+		msg, err := src.PluginRead()
+		if err != nil {
+			if err == output.ErrorStopped || err == io.EOF {
+				return nil
 			}
+			return err
 		}
-
-		if er == io.EOF {
-			break
-		}
-		if er != nil {
-			err = er
-			break
+		for _, dst := range writers {
+			if _, err := dst.PluginWrite(msg); err != nil {
+				return err
+			}
 		}
 	}
 

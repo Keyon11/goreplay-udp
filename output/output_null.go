@@ -1,5 +1,7 @@
 package output
 
+import "github.com/myzhan/goreplay-udp/proto"
+
 // NullOutput used for debugging, prints nothing
 type NullOutput struct {
 }
@@ -9,8 +11,8 @@ func NewNullOutput() (o *NullOutput) {
 	return new(NullOutput)
 }
 
-func (o *NullOutput) Write(data []byte) (int, error) {
-	return len(data), nil
+func (o *NullOutput) PluginWrite(msg *proto.Message) (int, error) {
+	return len(msg.Meta) + len(msg.Data) + len(proto.PayloadSeparator), nil
 }
 
 func (o *NullOutput) String() string {

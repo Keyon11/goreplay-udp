@@ -3,16 +3,32 @@ package main
 import (
 	"github.com/myzhan/goreplay-udp/input"
 	"github.com/myzhan/goreplay-udp/output"
-	"io"
+	"github.com/myzhan/goreplay-udp/proto"
 	"reflect"
 	"strings"
 	"sync"
 )
 
+// PluginReader is an interface for input plugins
+type PluginReader interface {
+	PluginRead() (msg *proto.Message, err error)
+}
+
+// PluginWriter is an interface for output plugins
+type PluginWriter interface {
+	PluginWrite(msg *proto.Message) (n int, err error)
+}
+
+// PluginReadWriter is an interface for plugins that support reading and writing
+type PluginReadWriter interface {
+	PluginReader
+	PluginWriter
+}
+
 // InOutPlugins struct for holding references to plugins
 type InOutPlugins struct {
-	Inputs  []io.Reader
-	Outputs []io.Writer
+	Inputs  []PluginReader
+	Outputs []PluginWriter
 	All     []interface{}
 }
 
@@ -61,16 +77,16 @@ func registerPlugin(constructor interface{}, options ...interface{}) {
 		plugin = NewLimiter(plugin, limit)
 	}
 
-	_, isR := plugin.(io.Reader)
-	_, isW := plugin.(io.Writer)
+	_, isR := plugin.(PluginReader)
+	_, isW := plugin.(PluginWriter)
 
 	// Some of the output can be Readers as well because return responses
 	if isR && !isW {
-		Plugins.Inputs = append(Plugins.Inputs, plugin.(io.Reader))
+		Plugins.Inputs = append(Plugins.Inputs, plugin.(PluginReader))
 	}
 
 	if isW {
-		Plugins.Outputs = append(Plugins.Outputs, plugin.(io.Writer))
+		Plugins.Outputs = append(Plugins.Outputs, plugin.(PluginWriter))
 	}
 
 	Plugins.All = append(Plugins.All, plugin)
@@ -103,5 +119,13 @@ func InitPlugins() {
 
 	for _, options := range Settings.outputUDP {
 		registerPlugin(output.NewUDPOutput, options, &Settings.outputUDPConfig)
+	}
+
+	for _, options := range Settings.inputHttp {
+		registerPlugin(input.NewHTTPInput, options)
+	}
+
+	for _, options := range Settings.outputHttp {
+		registerPlugin(output.NewHTTPOutput, options, &Settings.outputHttpConfig)
 	}
 }

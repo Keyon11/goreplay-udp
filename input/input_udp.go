@@ -25,22 +25,18 @@ func NewUDPInput(address string, trackResponse bool) (i *UDPInput) {
 	return
 }
 
-func (i *UDPInput) Read(data []byte) (int, error) {
-	msg := <-i.data
-	buf := msg.Data()
+func (i *UDPInput) PluginRead() (*proto.Message, error) {
+	var msg proto.Message
+	msgUdp := <-i.data
+	msg.Data = msgUdp.Data()
 
-	var header []byte
-
-	if msg.IsIncoming {
-		header = proto.PayloadHeader(proto.RequestPayload, msg.UUID(), msg.Start.UnixNano())
+	if msgUdp.IsIncoming {
+		msg.Meta = proto.PayloadHeader(proto.RequestPayload, msgUdp.UUID(), msgUdp.Start.UnixNano(), msgUdp.SrcIp)
 	} else {
-		header = proto.PayloadHeader(proto.ResponsePayload, msg.UUID(), msg.Start.UnixNano())
+		msg.Meta = proto.PayloadHeader(proto.ResponsePayload, msgUdp.UUID(), msgUdp.Start.UnixNano(), msgUdp.SrcIp)
 	}
-
-	copy(data[0:len(header)], header)
-	copy(data[len(header):], buf)
-
-	return len(buf) + len(header), nil
+	msgUdp = nil
+	return &msg, nil
 }
 
 func (i *UDPInput) listen(address string) {

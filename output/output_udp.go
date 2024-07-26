@@ -25,8 +25,9 @@ type UDPOutPut struct {
 
 	needWorker chan int
 
-	address string
-	queue   chan []byte
+	address   string
+	queue     chan *proto.Message
+	responses chan *proto.Response
 
 	config     *UDPOutputConfig
 	queueStats *stats.GorStat
@@ -41,8 +42,12 @@ func NewUDPOutput(address string, config *UDPOutputConfig) (o *UDPOutPut) {
 		o.queueStats = stats.NewGorStat("output_udp")
 	}
 
-	o.queue = make(chan []byte, 10000)
+	o.queue = make(chan *proto.Message, 10000)
 	o.needWorker = make(chan int, 1)
+
+	if !o.config.IgnoreResponse {
+		o.responses = make(chan *proto.Response, 10000)
+	}
 
 	// Initial workers count
 	if o.config.Workers == 0 {
@@ -99,15 +104,12 @@ func (o *UDPOutPut) startWorker() {
 	}
 }
 
-func (o *UDPOutPut) Write(data []byte) (n int, err error) {
-	if !proto.IsRequestPayload(data) {
-		return len(data), nil
+func (o *UDPOutPut) PluginWrite(msg *proto.Message) (n int, err error) {
+	if !proto.IsRequestPayload(msg.Meta) {
+		return len(msg.Data), nil
 	}
 
-	buf := make([]byte, len(data))
-	copy(buf, data)
-
-	o.queue <- buf
+	o.queue <- msg
 
 	if o.config.Stats {
 		o.queueStats.Write(len(o.queue))
@@ -121,12 +123,31 @@ func (o *UDPOutPut) Write(data []byte) (n int, err error) {
 		}
 	}
 
-	return len(data), nil
+	return len(msg.Data) + len(msg.Meta), nil
 }
 
-func (o *UDPOutPut) sendRequest(client *client.UDPClient, request []byte) {
-	body := proto.PayloadBody(request)
-	client.Send(body)
+// PluginRead reads message from this plugin
+func (o *UDPOutPut) PluginRead() (*proto.Message, error) {
+	if o.config.IgnoreResponse {
+		return nil, ErrorStopped
+	}
+	var resp *proto.Response
+	var msg proto.Message
+	resp = <-o.responses
+	msg.Data = resp.Payload
+
+	msg.Meta = proto.PayloadHeader(proto.ReplayedResponsePayload, resp.Uuid, resp.RoundTripTime, nil)
+
+	return &msg, nil
+}
+
+func (o *UDPOutPut) sendRequest(client *client.UDPClient, msg *proto.Message) {
+	if !proto.IsRequestPayload(msg.Meta) {
+		return
+	}
+
+	//TODO: should send meta?
+	client.Send(msg.Data)
 }
 
 func (o *UDPOutPut) String() string {

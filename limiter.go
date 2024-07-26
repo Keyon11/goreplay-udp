@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/myzhan/goreplay-udp/input"
-	"io"
+	"github.com/myzhan/goreplay-udp/proto"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -34,7 +34,7 @@ func parseLimitOptions(options string) (limit int, isPercent bool) {
 
 // NewLimiter constructor for Limiter, accepts plugin and options
 // `options` allow to sprcify relatve or absolute limiting
-func NewLimiter(plugin interface{}, options string) io.ReadWriter {
+func NewLimiter(plugin interface{}, options string) PluginReadWriter {
 	l := new(Limiter)
 	l.limit, l.isPercent = parseLimitOptions(options)
 	l.plugin = plugin
@@ -72,25 +72,25 @@ func (l *Limiter) isLimited() bool {
 	return false
 }
 
-func (l *Limiter) Write(data []byte) (n int, err error) {
+func (l *Limiter) PluginWrite(msg *proto.Message) (n int, err error) {
 	if l.isLimited() {
 		return 0, nil
 	}
 
-	n, err = l.plugin.(io.Writer).Write(data)
+	n, err = l.plugin.(PluginWriter).PluginWrite(msg)
 
 	return
 }
 
-func (l *Limiter) Read(data []byte) (n int, err error) {
-	if r, ok := l.plugin.(io.Reader); ok {
-		n, err = r.Read(data)
+func (l *Limiter) PluginRead() (msg *proto.Message, err error) {
+	if r, ok := l.plugin.(PluginReader); ok {
+		msg, err = r.PluginRead()
 	} else {
-		return 0, nil
+		return nil, nil
 	}
 
 	if l.isLimited() {
-		return 0, nil
+		return nil, nil
 	}
 
 	return
